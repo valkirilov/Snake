@@ -1,0 +1,19 @@
+
+
+<h3>Game</h3>
+
+<table class="game-field {{ game.fieldType }}">
+	<tr ng-repeat="row in game.board track by $index">
+		<td ng-repeat="col in row track by $index" 
+			class="{{ col === 0 ? 'empty' : '' }}
+				{{ col === 1 ? 'wall' : '' }}
+				{{ col === 2 ? 'food' : '' }}
+				{{ col === -1 ? 'collision' : '' }}
+				{{ col === -2 ? 'eat' : '' }}
+				{{ col === -3 ? 'snake' : '' }}"></td>
+	</tr>
+</table>
+
+<button ng-click="start()">Start game</button>
+
+<div class="overlay"></div>
