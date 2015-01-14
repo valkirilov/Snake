@@ -11,7 +11,7 @@
 	td {
 		width: 32px;
 		height: 32px;
-		@include transition(all, 0.5s, ease-in-out);
+		/* @include transition(all, 0.5s, ease-in-out); */
 
 		&.wall {
 			background: #34495e;

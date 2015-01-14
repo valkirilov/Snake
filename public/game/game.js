@@ -47,12 +47,21 @@ angular.module('myApp.game', ['ngRoute'])
 	};
 
 	$scope.start = function() {
-		gameSocket.emit('game:start', { id: $rootScope.player.id });
+		gameSocket.emit('game:init', { id: $rootScope.player.id });
 	};
 
 	gameSocket.on('game-'+$rootScope.player.id, function(data) {
-		console.log(data.type);
+		console.log(data.type + " status: " + data.status + " message: " + data.message);
 		$scope.game = data.game;
+
+		if (data.type === 'init') {
+			gameSocket.emit('game:start', { id: $rootScope.player.id });
+		}
+
+		if (!data.status) {
+			alert('Game end!');
+		}
+
 	});
 
 	$scope.init = function() {

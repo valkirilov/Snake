@@ -77,7 +77,8 @@ module.exports = function (io) {
 
       io.sockets.emit('game-'+user.id, {
         type: 'init',
-        game: game
+        game: game,
+        status: true
       });
     });
 
@@ -120,64 +121,155 @@ module.exports = function (io) {
       return newField;
     }
 
-    function moveSnake(snake, direction) {
+    function moveSnake(snake, direction, field) {
       var lastCell = snake.length;
+      var result = {};
 
-      snake = snake.map(function(cell, index) {
-        if (index === lastCell-1) {
-          switch (direction) {
-            case DIRECTION.UP:
-              cell.y--;
-              break;
-            case DIRECTION.RIGHT:
-              cell.x++;
-              break;
-            case DIRECTION.DOWN:
-              cell.y++;
-              break;
-            case DIRECTION.LEFT:
-              cell.x--;
-              break;
+      // Check for the collision of the first element
+      var snakeHead = {
+        x: snake[lastCell-1].x,
+        y: snake[lastCell-1].y
+      },
+          isEating = false;
+
+      switch (direction) {
+        case DIRECTION.UP:
+          snakeHead.y--;
+          break;
+        case DIRECTION.RIGHT:
+          snakeHead.x++;
+          break;
+        case DIRECTION.DOWN:
+          snakeHead.y++;
+          break;
+        case DIRECTION.LEFT:
+          snakeHead.x--;
+          break;
+      }
+
+      if (field[snakeHead.y][snakeHead.x] === 2) {
+        result.message = "Eating";
+        field[snakeHead.y][snakeHead.x] = 0;
+        snake.push(snakeHead);
+        field = generateFood(field, snake);
+        isEating = true;
+      }
+      else if (field[snakeHead.y][snakeHead.x] === 1) {
+        result.message = "Wall";
+        
+        // Not sure for the multyplayer
+        result.status = false;
+        return result;
+      }
+      else {
+        result.message = "Free cell";
+      }
+
+      if (!isEating) {
+        snake = snake.map(function(cell, index) {
+          if (index === lastCell-1) {
+            cell = snakeHead;
           }
-        }
-        else {
-          cell.x = snake[index+1].x;
-          cell.y = snake[index+1].y;
-        }
+          else {
+            cell.x = snake[index+1].x;
+            cell.y = snake[index+1].y;
+          }
+          return cell;
+        });
+      }
 
-        return cell;
-      });
+      result.snake = snake;
+      result.field = field;
+      result.status = true;
 
-      return snake;
+      return result;
     }
 
     function applySnakeToField(field, snake) {
+      var result = {};
       var board = generateField(field);
+      result.status = true;
       snake.forEach(function(item) {
-        if (board[item.y][item.x] === 0 || board[item.y][item.x] === -3)
+        
+        if (board[item.y][item.x] === 0) {
           board[item.y][item.x] = -3;
-        else
+        }
+        else if (board[item.y][item.x] === -3) {
+          result.status = false;
+          return result;
+        }
+        else {
           board[item.y][item.x] *= -1;
+        }
       });
 
-      return board;
+      result.board = board;
+
+      return result;
+    }
+
+    function generateFood(field, snake) {
+      var isNotEmptyField = true,
+          x, 
+          y;
+
+      while(isNotEmptyField) {
+        isNotEmptyField = true;
+        y = generateRandom(field.length);
+        x = generateRandom(field[0].length);
+
+        if (field[y][x] === 0) {
+          snake.forEach(function(item) {
+            if (item.x != x && item.y != y) {
+              isNotEmptyField = false;
+            }
+          });
+        }
+      }
+
+      field[y][x] = 2;
+      return field;
     }
 
     function gameTick(game) {
       console.log('Game tick');
       //console.log(game);
+      var status = true;
 
-      game.snake = moveSnake(game.snake, game.direction);
-      game.board = applySnakeToField(game.field, game.snake);
+      var move = moveSnake(game.snake, game.direction, game.field);
+      status = move.status;
+      if (!move.status) {
+        // Game end
+      }
+      else {
+        game.snake = move.snake;
+        game.field = move.field;
+
+        var boardWithSnake = applySnakeToField(game.field, game.snake);
+        if (!boardWithSnake.status) {
+          status = false;
+        }
+        else {
+          game.board = boardWithSnake.board;  
+        }
+      }
 
       io.sockets.emit('game-'+user.id, {
         type: 'tick',
-        game: game
+        game: game,
+        status: status,
+        message: move.message
       });
 
-      game.timeout = setTimeout(function() {
-        gameTick(game);
-      }, 300);
+      if (status) {
+        game.timeout = setTimeout(function() {
+          gameTick(game);
+        }, 100);
+      }
+    }
+
+    function generateRandom(max) {
+      return Math.floor(Math.random()*max);
     }
 
   });
